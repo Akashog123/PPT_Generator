@@ -275,18 +275,28 @@ def add_formatted_content(shape, content_lines):
 
 def process_markdown_formatting(paragraph, text):
     """Process markdown formatting and apply it to the paragraph."""
-    # Handle bold formatting
-    parts = re.split(r'(\$\*\*.*?\$\*\*|__.*__)', text)
+    if not text:
+        return
+        
+    # Handle bold formatting (**text** or __text__)
+    # Split text by both ** and __ patterns
+    parts = re.split(r'(\*\*.*?\*\*|__.*?__)', text)
+    
     for part in parts:
+        if not part:
+            continue
+        # Check for **bold** formatting
         if part.startswith('**') and part.endswith('**') and len(part) > 4:
             run = paragraph.add_run()
-            run.text = part[2:-2]
+            run.text = part[2:-2]  # Remove the ** markers
             run.font.bold = True
+        # Check for __bold__ formatting
         elif part.startswith('__') and part.endswith('__') and len(part) > 4:
             run = paragraph.add_run()
-            run.text = part[2:-2]
+            run.text = part[2:-2]  # Remove the __ markers
             run.font.bold = True
-        elif part:
+        else:
+            # Regular text
             run = paragraph.add_run()
             run.text = part
 
