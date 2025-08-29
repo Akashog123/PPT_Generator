@@ -4,7 +4,7 @@
 [![Flask](https://img.shields.io/badge/Flask-2.x-green)](https://palletsprojects.com/p/flask/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-SlideGen AI is an intelligent PowerPoint presentation generator that transforms your text content into professionally formatted slides using AI. The system preserves your template's visual identity while leveraging advanced natural language processing to structure content effectively.
+SlideGen AI transforms text content into professionally formatted PowerPoint presentations using AI. It preserves your template's visual identity while leveraging advanced natural language processing to structure content effectively.
 
 ## Features
 
@@ -13,7 +13,6 @@ SlideGen AI is an intelligent PowerPoint presentation generator that transforms 
 - **Intelligent Content Structuring**: Automatically organizes content into appropriate slide layouts
 - **Rich Text Formatting**: Preserves bold formatting and hierarchical bullet points
 - **Responsive Web Interface**: Clean, dark-mode compatible UI with drag-and-drop file upload
-- **Enhanced UX**: Visual feedback during generation, clear file upload indicators
 
 ## System Architecture
 
@@ -34,19 +33,11 @@ graph TD
     L --> M[Download]
 ```
 
-The system follows a modular architecture where the Flask backend orchestrates interactions between AI models and the python-pptx library. The core processing pipeline consists of five main components:
-
-1. **Input Handler**: Processes user requests, including file uploads, provider selection, and content input
-2. **AI Interface**: Dynamically configures OpenAI-compatible clients based on selected provider
-3. **Content Processor**: Transforms natural language into structured slide content using AI
-4. **Template Engine**: Analyzes PowerPoint templates and manages layout constraints
-5. **Presentation Generator**: Uses python-pptx to create the final PowerPoint file
+The system follows a modular architecture where the Flask backend orchestrates interactions between AI models and the python-pptx library.
 
 ## Technical Implementation
 
 ### Content Processing Pipeline
-
-The content processing follows a four-stage pipeline:
 
 1. **Content Analysis and Structuring**
    The input text is processed by the selected AI model through a specialized system prompt that instructs the LLM to:
@@ -92,12 +83,6 @@ The application preserves template integrity through several mechanisms:
 - Typography settings maintained via layout placeholders
 - Background graphics and assets untouched during content replacement
 
-**Asset Management**
-- Slide removal rather than content clearing
-- Placeholder-based content injection
-- Non-destructive editing approach
-- Asset reference preservation in template structure
-
 ### API Integration
 
 The system supports multiple AI providers through a unified OpenAI-compatible interface:
@@ -139,29 +124,66 @@ Each provider is configured with appropriate base URLs and model mappings, with 
    python app.py
    ```
 
-6. **Access the Web Interface**
+5. **Access the Web Interface**
    Open your browser and navigate to `http://localhost:5000`
 
-### Vercel Deployment
+## Deployment Options
+
+### Docker Deployment
+
+This application includes a Dockerfile for containerized deployment:
+
+1. **Build the Docker Image**
+   ```bash
+   docker build -t slidegen-ai .
+   ```
+
+2. **Run the Container**
+   ```bash
+   docker run -p 8080:8080 slidegen-ai
+   ```
+
+3. **Access the Application**
+   Open your browser and navigate to `http://localhost:8080`
+
+The Docker image uses Python 3.11-slim as the base image and includes all necessary system dependencies for the Pillow library. The application runs with Gunicorn for production deployment.
+
+### Render Deployment
+
+To deploy on Render:
 
 1. **Fork the Repository**
    Fork this repository to your GitHub account.
 
-2. **Connect to Vercel**
-   - Go to [vercel.com](https://vercel.com/) and sign up or log in
-   - Click "New Project"
-   - Import your forked repository
+2. **Create a New Web Service on Render**
+   - Go to [render.com](https://render.com/) and sign up or log in
+   - Click "New" and select "Web Service"
+   - Connect your GitHub account and select your forked repository
 
-3. **Configure Project**
-   - Framework Preset: Other
-   - Root Directory: Leave as is
-   - Build and Output Settings:
-     - Build Command: `pip install -r requirements.txt`
-     - Output Directory: `.`
-     - Install Command: Leave as default
+3. **Configure the Service**
+   - Name: Choose a name for your service
+   - Region: Select the region closest to your users
+   - Branch: main (or your preferred branch)
+   - Runtime: Python 3
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `gunicorn -b 0.0.0.0:10000 app:app`
+   - Plan: Choose your preferred plan (Free tier available)
 
-4. **Deploy**
-   Click "Deploy" and wait for the build to complete.
+4. **Set Environment Variables**
+   - Add any required environment variables in the Dashboard > Environment section
+
+5. **Deploy**
+   Click "Create Web Service" and wait for the build to complete.
+
+6. **Update Environment Variables (if needed)**
+   After deployment, you may need to set the `PYTHON_VERSION` environment variable to `3.11` in the Render dashboard.
+
+### Environment Variables
+
+The application uses the following environment variables (all optional):
+
+- `FLASK_ENV` - Set to `development` for debug mode
+- API keys for various providers (not required as they're provided by the user in the UI)
 
 ## Usage Instructions
 
@@ -183,9 +205,8 @@ For custom models:
 TDS-EXTRA_PPT/
 ├── app.py                 # Main Flask application
 ├── requirements.txt       # Python dependencies
-├── runtime.txt            # Python runtime version for Vercel
-├── vercel.json            # Vercel deployment configuration
-├── .vercelignore          # Files to exclude from Vercel deployment
+├── Dockerfile             # Docker configuration
+├── .dockerignore          # Files to exclude from Docker builds
 ├── .env                   # Environment variables (optional)
 ├── .gitignore             # Git ignore patterns
 ├── README.md              # This file
