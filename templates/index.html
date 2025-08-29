@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SlideGen AI - PowerPoint Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .provider-card {
+      transition: all 0.2s ease;
+    }
+    
+    .provider-card.selected {
+      border-color: #262626;
+    }
+    
+    .dark .provider-card.selected {
+      border-color: #f5f5f5;
+    }
+  </style>
+</head>
+<body class="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-50 min-h-screen transition-colors">
+  <div class="container mx-auto px-4 py-6 max-w-4xl">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8 pb-4 border-b border-neutral-200 dark:border-neutral-700">
+      <div>
+        <h1 class="text-3xl font-bold text-neutral-900 dark:text-neutral-50">SlideGen AI</h1>
+        <p class="text-neutral-600 dark:text-neutral-400 mt-1">Professional Presentation Generator</p>
+      </div>
+      
+      <!-- Theme Toggle -->
+      <div class="flex items-center space-x-3">
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="theme-toggle" class="sr-only peer">
+          <div class="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-neutral-600 peer-checked:bg-neutral-800 dark:peer-checked:bg-neutral-300"></div>
+        </label>
+      </div>
+    </div>
+    
+    <!-- Main Form -->
+    <form action="/generate" method="post" enctype="multipart/form-data" class="space-y-6">
+      <!-- File Upload -->
+      <div>
+        <label class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
+          Upload PowerPoint Template
+        </label>
+        <div class="flex items-center justify-center w-full">
+          <label for="ppt-file" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-neutral-300 dark:border-neutral-600 cursor-pointer bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
+            <div class="flex flex-col items-center justify-center py-6">
+              <i class="fas fa-upload text-2xl text-neutral-500 mb-2"></i>
+              <p class="text-sm text-neutral-600 dark:text-neutral-300 font-medium">
+                <span class="font-semibold">Click to upload</span> or drag and drop
+              </p>
+              <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">PowerPoint files only (.pptx)</p>
+            </div>
+            <input id="ppt-file" name="ppt_file" type="file" class="hidden" accept=".pptx" required />
+          </label>
+        </div>
+        <p id="file-name" class="mt-2 text-sm text-neutral-600 dark:text-neutral-400 hidden">
+          Selected: <span class="font-medium"></span>
+        </p>
+      </div>
+      
+      <!-- Provider Selection -->
+      <div>
+        <label class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
+          Select AI Provider
+        </label>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="provider-card bg-white dark:bg-neutral-800 p-4 cursor-pointer border-2 border-neutral-300 dark:border-neutral-600 text-center hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors" data-provider="gemini">
+            <h3 class="font-semibold text-base">Gemini</h3>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">Google</p>
+          </div>
+          
+          <div class="provider-card bg-white dark:bg-neutral-800 p-4 cursor-pointer border-2 border-neutral-300 dark:border-neutral-600 text-center hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors" data-provider="openai">
+            <h3 class="font-semibold text-base">OpenAI</h3>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">GPT Models</p>
+          </div>
+          
+          <div class="provider-card bg-white dark:bg-neutral-800 p-4 cursor-pointer border-2 border-neutral-300 dark:border-neutral-600 text-center hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors" data-provider="claude">
+            <h3 class="font-semibold text-base">Claude</h3>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">Anthropic</p>
+          </div>
+        </div>
+        <input type="hidden" id="provider" name="provider" value="gemini">
+      </div>
+      
+      <!-- Model Selection and API Key -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label for="model" class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
+            Select Model
+          </label>
+          <select id="model" name="model" class="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:border-neutral-900 dark:focus:border-neutral-50 outline-none transition-colors">
+            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+          </select>
+          
+          <!-- Custom Model Section -->
+          <div id="custom-model-section" class="mt-4 hidden">
+            <label class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
+              Custom Model (OpenAI Compatible)
+            </label>
+            <input type="text" id="custom-base-url" name="custom_base_url" 
+              class="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:border-neutral-900 dark:focus:border-neutral-50 outline-none transition-colors mb-3" 
+              placeholder="Enter base API URL (e.g., https://api.openai.com/v1)">
+            <input type="text" id="custom-model-name" name="custom_model_name" 
+              class="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:border-neutral-900 dark:focus:border-neutral-50 outline-none transition-colors" 
+              placeholder="Enter model name (e.g., gpt-4)">
+            <p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+              For OpenAI-compatible APIs (OpenAI, Azure OpenAI, Mistral, etc.). Ensure the base URL ends with '/v1' for most providers.
+            </p>
+          </div>
+          
+          <!-- Use Custom Model Checkbox -->
+          <div class="mt-3">
+            <label class="inline-flex items-center">
+              <input type="checkbox" id="use-custom-model" class="rounded border-neutral-300 dark:border-neutral-600 text-neutral-900 dark:text-neutral-50 focus:ring-neutral-900 dark:focus:ring-neutral-50">
+              <span class="ml-2 text-neutral-700 dark:text-neutral-300">Use custom OpenAI-compatible model</span>
+            </label>
+          </div>
+        </div>
+        
+        <div>
+          <label for="api_key" class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
+            API Key
+          </label>
+          <input type="password" id="api_key" name="api_key" 
+            class="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:border-neutral-900 dark:focus:border-neutral-50 outline-none transition-colors" 
+            placeholder="Enter your API key" required>
+          <p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+            Your API key is used only for this request and is not stored.
+          </p>
+        </div>
+      </div>
+      
+      <!-- Content Input -->
+      <div>
+        <label for="user-content" class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
+          Enter Your Content
+        </label>
+        <textarea id="user-content" name="user_content" rows="12" 
+          class="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:border-neutral-900 dark:focus:border-neutral-50 outline-none transition-colors resize-y" 
+          placeholder="Describe the content you want in your presentation. Include key points, topics, detailed information, bullet points, specific data, or any other content you want included in your slides. The more detail you provide, the better the generated presentation will be." required></textarea>
+        <p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+          Include key points, topics, and any specific information you want in your slides.
+        </p>
+      </div>
+      
+      <!-- Generate Button -->
+      <div class="pt-2">
+        <button type="submit" class="w-full bg-neutral-900 dark:bg-neutral-50 text-neutral-50 dark:text-neutral-900 font-semibold py-4 px-6 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors">
+          Generate Presentation
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Model options for each provider
+    const modelOptions = {
+      'gemini': [
+        { value: 'gemini-2.5-flash', text: 'gemini-2.5-flash' },
+        { value: 'gemini-1.5-pro', text: 'gemini-1.5-pro' },
+        { value: 'gemini-1.5-flash', text: 'gemini-1.5-flash' }
+      ],
+      'openai': [
+        { value: 'gpt-4', text: 'gpt-4' },
+        { value: 'gpt-4-turbo', text: 'gpt-4-turbo' },
+        { value: 'gpt-3.5-turbo', text: 'gpt-3.5-turbo' }
+      ],
+      'claude': [
+        { value: 'claude-3-5-sonnet', text: 'claude-3-5-sonnet' },
+        { value: 'claude-3-opus', text: 'claude-3-opus' },
+        { value: 'claude-3-sonnet', text: 'claude-3-sonnet' }
+      ]
+    };
+    
+    // DOM Elements
+    const providerCards = document.querySelectorAll('.provider-card');
+    const providerInput = document.getElementById('provider');
+    const modelSelect = document.getElementById('model');
+    const fileInput = document.getElementById('ppt-file');
+    const fileName = document.getElementById('file-name');
+    const themeToggle = document.getElementById('theme-toggle');
+    const useCustomModelCheckbox = document.getElementById('use-custom-model');
+    const customModelSection = document.getElementById('custom-model-section');
+    const customBaseUrlInput = document.getElementById('custom-base-url');
+    const customModelNameInput = document.getElementById('custom-model-name');
+    
+    // Theme Management
+    function initTheme() {
+      const isDark = localStorage.getItem('theme') === 'dark' || 
+                    (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+        themeToggle.checked = true;
+      } else {
+        document.documentElement.classList.remove('dark');
+        themeToggle.checked = false;
+      }
+    }
+    
+    themeToggle.addEventListener('change', function() {
+      if (this.checked) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+    });
+    
+    // Provider Selection
+    providerCards.forEach(card => {
+      card.addEventListener('click', () => {
+        providerCards.forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        
+        const provider = card.getAttribute('data-provider');
+        providerInput.value = provider;
+        updateModelOptions(provider);
+        
+        // Hide custom model section when changing providers
+        customModelSection.classList.add('hidden');
+        useCustomModelCheckbox.checked = false;
+      });
+    });
+    
+    // Custom Model Toggle
+    useCustomModelCheckbox.addEventListener('change', function() {
+      if (this.checked) {
+        customModelSection.classList.remove('hidden');
+        // Clear default model selection
+        modelSelect.value = '';
+        // Show a message about how custom models work
+        const infoMessage = document.createElement('p');
+        infoMessage.id = 'custom-model-info';
+        infoMessage.className = 'mt-2 text-sm text-blue-600 dark:text-blue-400';
+        infoMessage.textContent = 'Provider automatically set to OpenAI for custom models. Make sure your API key is valid for the custom endpoint.';
+        customModelSection.parentNode.insertBefore(infoMessage, customModelSection.nextSibling);
+      } else {
+        customModelSection.classList.add('hidden');
+        // Restore default model selection for current provider
+        const provider = providerInput.value;
+        if (modelOptions[provider] && modelOptions[provider].length > 0) {
+          modelSelect.value = modelOptions[provider][0].value;
+        }
+        // Remove info message if it exists
+        const infoMessage = document.getElementById('custom-model-info');
+        if (infoMessage) {
+          infoMessage.remove();
+        }
+      }
+    });
+    
+    // Update model options
+    function updateModelOptions(provider) {
+      modelSelect.innerHTML = '';
+      modelOptions[provider].forEach(option => {
+        const opt = document.createElement('option');
+        opt.value = option.value;
+        opt.text = option.text;
+        modelSelect.appendChild(opt);
+      });
+      
+      // Reset custom model section when changing providers
+      customModelSection.classList.add('hidden');
+      useCustomModelCheckbox.checked = false;
+      customBaseUrlInput.value = '';
+      customModelNameInput.value = '';
+    }
+    
+    // File handling
+    fileInput.addEventListener('change', function() {
+      if (this.files.length > 0) {
+        fileName.classList.remove('hidden');
+        fileName.querySelector('span').textContent = this.files[0].name;
+      } else {
+        fileName.classList.add('hidden');
+      }
+    });
+    
+    // Drag and drop functionality
+    const fileUploadArea = document.querySelector('label[for="ppt-file"]');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      fileUploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+      fileUploadArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+      fileUploadArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight(e) {
+      fileUploadArea.classList.add('border-neutral-900');
+      fileUploadArea.classList.add('dark:border-neutral-50');
+    }
+    
+    function unhighlight(e) {
+      fileUploadArea.classList.remove('border-neutral-900');
+      fileUploadArea.classList.remove('dark:border-neutral-50');
+    }
+    
+    fileUploadArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      
+      if (files.length > 0 && files[0].name.endsWith('.pptx')) {
+        fileInput.files = files;
+        const event = new Event('change', { bubbles: true });
+        fileInput.dispatchEvent(event);
+      }
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      initTheme();
+      providerCards[0].click(); // Select first provider by default
+      
+      // Add form submission handler
+      const form = document.querySelector('form');
+      form.addEventListener('submit', function(e) {
+        if (useCustomModelCheckbox.checked) {
+          // Validate custom model fields
+          if (!customBaseUrlInput.value.trim() || !customModelNameInput.value.trim()) {
+            e.preventDefault();
+            alert('Please enter both the base API URL and model name for custom models.');
+            return;
+          }
+          
+          // Validate URL format
+          if (!customBaseUrlInput.value.trim().startsWith('http://') && !customBaseUrlInput.value.trim().startsWith('https://')) {
+            e.preventDefault();
+            alert('Custom base URL must start with "http://" or "https://".');
+            return;
+          }
+          
+          // Set provider to 'openai' for custom models since they're OpenAI-compatible
+          providerInput.value = 'openai';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
