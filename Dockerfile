@@ -1,5 +1,5 @@
 # Use an official Python image
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
@@ -16,10 +16,7 @@ COPY . /app
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose the Flask port
-EXPOSE 8000
-
-# Install gunicorn (if not already in requirements.txt)
-RUN pip install gunicorn
+EXPOSE 8080
 
 # Run the Flask app with gunicorn for production
 CMD ["gunicorn", "-b", "0.0.0.0:8080", "app:app"]
