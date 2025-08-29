@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import uuid
 import io
+import httpx
 
 # Load environment variables
 load_dotenv()
@@ -129,7 +130,7 @@ def get_layout_constraints(prs, available_layouts):
         constraints[layout_name] = layout_info
     return constraints
 
-def generate_markdown(content, available_layout_names, constraints_text, provider_name, model_name, api_key, custom_base_url=None):
+def generate_markdown(content, available_layout_names, constraints_text, provider_name, model_name, api_key, custom_base_url=None, proxies=None):
     """Generate Markdown using the selected provider and model via OpenAI-compatible interface."""
     # Set up the client based on the selected provider
     global client
@@ -140,9 +141,13 @@ def generate_markdown(content, available_layout_names, constraints_text, provide
     # Use custom base URL if provided, otherwise use provider default
     base_url = custom_base_url if custom_base_url else provider['base_url']
     
+    # Create a custom httpx client with proxy configuration if proxies are provided
+    http_client = httpx.Client(proxies=proxies) if proxies else None
+    
     client = OpenAI(
         api_key=api_key,
-        base_url=base_url
+        base_url=base_url,
+        http_client=http_client
     )
     
     # Get the model identifier for the selected provider
@@ -271,7 +276,7 @@ def add_formatted_content(shape, content_lines):
 def process_markdown_formatting(paragraph, text):
     """Process markdown formatting and apply it to the paragraph."""
     # Handle bold formatting
-    parts = re.split(r'(\*\*.*?\*\*|__.*__)', text)
+    parts = re.split(r'(\$\*\*.*?\$\*\*|__.*__)', text)
     for part in parts:
         if part.startswith('**') and part.endswith('**') and len(part) > 4:
             run = paragraph.add_run()
@@ -342,7 +347,13 @@ def generate():
         ])
         
         try:
-            md_content = generate_markdown(user_content, available_layout_names, constraints_text, provider_name, model_name, api_key, custom_base_url)
+            # Get proxy settings from request if available
+            proxies = {
+                "http://": request.form.get("http_proxy"),
+                "https://": request.form.get("https_proxy"),
+            } if request.form.get("http_proxy") or request.form.get("https_proxy") else None
+            
+            md_content = generate_markdown(user_content, available_layout_names, constraints_text, provider_name, model_name, api_key, custom_base_url, proxies)
         except Exception as e:
             return f"Error generating content: {str(e)}", 500
             
