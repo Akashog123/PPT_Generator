@@ -29,6 +29,25 @@
     .dark .provider-card.selected {
       border-color: #f5f5f5;
     }
+    
+    .file-upload-label {
+      transition: all 0.2s ease;
+    }
+    
+    .file-upload-label.dragover {
+      border-color: #262626;
+      background-color: #f9f9f9;
+    }
+    
+    .dark .file-upload-label.dragover {
+      border-color: #f5f5f5;
+      background-color: #1f1f1f;
+    }
+    
+    .generate-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body class="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-50 min-h-screen transition-colors">
@@ -50,27 +69,33 @@
     </div>
     
     <!-- Main Form -->
-    <form action="/generate" method="post" enctype="multipart/form-data" class="space-y-6">
+    <form id="generate-form" action="/generate" method="post" enctype="multipart/form-data" class="space-y-6">
       <!-- File Upload -->
       <div>
         <label class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
           Upload PowerPoint Template
         </label>
         <div class="flex items-center justify-center w-full">
-          <label for="ppt-file" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-neutral-300 dark:border-neutral-600 cursor-pointer bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
-            <div class="flex flex-col items-center justify-center py-6">
-              <i class="fas fa-upload text-2xl text-neutral-500 mb-2"></i>
-              <p class="text-sm text-neutral-600 dark:text-neutral-300 font-medium">
+          <label for="ppt-file" class="file-upload-label flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-neutral-300 dark:border-neutral-600 cursor-pointer bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
+            <div class="flex flex-col items-center justify-center py-8">
+              <i class="fas fa-upload text-3xl text-neutral-500 mb-3"></i>
+              <p class="text-lg text-neutral-600 dark:text-neutral-300 font-medium">
                 <span class="font-semibold">Click to upload</span> or drag and drop
               </p>
-              <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">PowerPoint files only (.pptx)</p>
+              <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-2">PowerPoint files only (.pptx)</p>
             </div>
             <input id="ppt-file" name="ppt_file" type="file" class="hidden" accept=".pptx" required />
           </label>
         </div>
-        <p id="file-name" class="mt-2 text-sm text-neutral-600 dark:text-neutral-400 hidden">
-          Selected: <span class="font-medium"></span>
-        </p>
+        <div id="file-info" class="mt-3 p-3 bg-neutral-100 dark:bg-neutral-800 hidden">
+          <div class="flex items-center">
+            <i class="fas fa-file-powerpoint text-red-500 text-xl mr-3"></i>
+            <div>
+              <p class="font-medium text-neutral-900 dark:text-neutral-50" id="file-name">filename.pptx</p>
+              <p class="text-sm text-neutral-600 dark:text-neutral-400" id="file-size">2.4 MB</p>
+            </div>
+          </div>
+        </div>
       </div>
       
       <!-- Provider Selection -->
@@ -162,11 +187,24 @@
       
       <!-- Generate Button -->
       <div class="pt-2">
-        <button type="submit" class="w-full bg-neutral-900 dark:bg-neutral-50 text-neutral-50 dark:text-neutral-900 font-semibold py-4 px-6 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors">
+        <button type="submit" id="generate-btn" class="generate-btn w-full bg-neutral-900 dark:bg-neutral-50 text-neutral-50 dark:text-neutral-900 font-semibold py-4 px-6 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors">
           Generate Presentation
         </button>
       </div>
     </form>
+    
+    <!-- Generating Overlay -->
+    <div id="generating-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+      <div class="bg-white dark:bg-neutral-800 p-8 text-center max-w-md">
+        <div class="flex justify-center mb-6">
+          <div class="w-12 h-12 border-4 border-neutral-900 dark:border-neutral-50 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <h3 class="text-2xl font-bold text-neutral-900 dark:text-neutral-50 mb-2">Generating Presentation</h3>
+        <p class="text-neutral-600 dark:text-neutral-400">
+          This may take 30-60 seconds. Please do not refresh or close the page.
+        </p>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -194,12 +232,18 @@
     const providerInput = document.getElementById('provider');
     const modelSelect = document.getElementById('model');
     const fileInput = document.getElementById('ppt-file');
+    const fileInfo = document.getElementById('file-info');
     const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
     const themeToggle = document.getElementById('theme-toggle');
     const useCustomModelCheckbox = document.getElementById('use-custom-model');
     const customModelSection = document.getElementById('custom-model-section');
     const customBaseUrlInput = document.getElementById('custom-base-url');
     const customModelNameInput = document.getElementById('custom-model-name');
+    const generateBtn = document.getElementById('generate-btn');
+    const generatingOverlay = document.getElementById('generating-overlay');
+    const form = document.getElementById('generate-form');
+    const fileUploadLabel = document.querySelector('.file-upload-label');
     
     // Theme Management
     function initTheme() {
@@ -288,18 +332,20 @@
     // File handling
     fileInput.addEventListener('change', function() {
       if (this.files.length > 0) {
-        fileName.classList.remove('hidden');
-        fileName.querySelector('span').textContent = this.files[0].name;
+        const file = this.files[0];
+        fileName.textContent = file.name;
+        // Format file size
+        const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+        fileSize.textContent = `${sizeInMB} MB`;
+        fileInfo.classList.remove('hidden');
       } else {
-        fileName.classList.add('hidden');
+        fileInfo.classList.add('hidden');
       }
     });
     
     // Drag and drop functionality
-    const fileUploadArea = document.querySelector('label[for="ppt-file"]');
-    
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-      fileUploadArea.addEventListener(eventName, preventDefaults, false);
+      fileUploadLabel.addEventListener(eventName, preventDefaults, false);
     });
     
     function preventDefaults(e) {
@@ -308,24 +354,22 @@
     }
     
     ['dragenter', 'dragover'].forEach(eventName => {
-      fileUploadArea.addEventListener(eventName, highlight, false);
+      fileUploadLabel.addEventListener(eventName, highlight, false);
     });
     
     ['dragleave', 'drop'].forEach(eventName => {
-      fileUploadArea.addEventListener(eventName, unhighlight, false);
+      fileUploadLabel.addEventListener(eventName, unhighlight, false);
     });
     
     function highlight(e) {
-      fileUploadArea.classList.add('border-neutral-900');
-      fileUploadArea.classList.add('dark:border-neutral-50');
+      fileUploadLabel.classList.add('dragover');
     }
     
     function unhighlight(e) {
-      fileUploadArea.classList.remove('border-neutral-900');
-      fileUploadArea.classList.remove('dark:border-neutral-50');
+      fileUploadLabel.classList.remove('dragover');
     }
     
-    fileUploadArea.addEventListener('drop', handleDrop, false);
+    fileUploadLabel.addEventListener('drop', handleDrop, false);
     
     function handleDrop(e) {
       const dt = e.dataTransfer;
@@ -338,33 +382,102 @@
       }
     }
     
+    // Form submission handling with AJAX
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Show generating overlay
+      generatingOverlay.classList.remove('hidden');
+      // Disable generate button
+      generateBtn.disabled = true;
+      generateBtn.textContent = 'Generating...';
+      
+      // Validate custom model if selected
+      if (useCustomModelCheckbox.checked) {
+        // Validate custom model fields
+        if (!customBaseUrlInput.value.trim() || !customModelNameInput.value.trim()) {
+          alert('Please enter both the base API URL and model name for custom models.');
+          generatingOverlay.classList.add('hidden');
+          generateBtn.disabled = false;
+          generateBtn.textContent = 'Generate Presentation';
+          return;
+        }
+        
+        // Validate URL format
+        if (!customBaseUrlInput.value.trim().startsWith('http://') && !customBaseUrlInput.value.trim().startsWith('https://')) {
+          alert('Custom base URL must start with "http://" or "https://".');
+          generatingOverlay.classList.add('hidden');
+          generateBtn.disabled = false;
+          generateBtn.textContent = 'Generate Presentation';
+          return;
+        }
+        
+        // Set provider to 'openai' for custom models since they're OpenAI-compatible
+        providerInput.value = 'openai';
+      }
+      
+      // Create FormData object
+      const formData = new FormData(form);
+      
+      // Send request using fetch
+      fetch('/generate', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => {
+        if (response.ok) {
+          // Get filename from Content-Disposition header
+          const contentDisposition = response.headers.get('Content-Disposition');
+          let filename = 'generated_presentation.pptx';
+          if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/);
+            if (filenameMatch && filenameMatch[1]) {
+              filename = filenameMatch[1];
+            }
+          }
+          
+          // Create blob from response
+          return response.blob().then(blob => {
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Clean up
+            setTimeout(() => {
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+              
+              // Hide generating overlay and re-enable button
+              generatingOverlay.classList.add('hidden');
+              generateBtn.disabled = false;
+              generateBtn.textContent = 'Generate Presentation';
+            }, 100);
+          });
+        } else {
+          return response.text().then(text => {
+            throw new Error(text);
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Error generating presentation: ' + error.message);
+        
+        // Hide generating overlay and re-enable button
+        generatingOverlay.classList.add('hidden');
+        generateBtn.disabled = false;
+        generateBtn.textContent = 'Generate Presentation';
+      });
+    });
+    
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
       initTheme();
       providerCards[0].click(); // Select first provider by default
-      
-      // Add form submission handler
-      const form = document.querySelector('form');
-      form.addEventListener('submit', function(e) {
-        if (useCustomModelCheckbox.checked) {
-          // Validate custom model fields
-          if (!customBaseUrlInput.value.trim() || !customModelNameInput.value.trim()) {
-            e.preventDefault();
-            alert('Please enter both the base API URL and model name for custom models.');
-            return;
-          }
-          
-          // Validate URL format
-          if (!customBaseUrlInput.value.trim().startsWith('http://') && !customBaseUrlInput.value.trim().startsWith('https://')) {
-            e.preventDefault();
-            alert('Custom base URL must start with "http://" or "https://".');
-            return;
-          }
-          
-          // Set provider to 'openai' for custom models since they're OpenAI-compatible
-          providerInput.value = 'openai';
-        }
-      });
     });
   </script>
 </body>
