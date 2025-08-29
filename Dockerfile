@@ -22,8 +22,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your app
 COPY . .
 
+# Create the upload folder for Vercel compatibility
+RUN mkdir -p /tmp/uploads
+
 # Expose port (Vercel expects 8000 by default)
 EXPOSE 8000
 
 # Command to run your Flask app with Gunicorn
-CMD ["gunicorn", "-b", "0.0.0.0:8000", "app:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:8000", "app:application"]
