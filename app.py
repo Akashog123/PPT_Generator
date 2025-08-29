@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, jsonify
 from pptx import Presentation
 from pptx.util import Pt
 from pptx.enum.shapes import PP_PLACEHOLDER
@@ -44,7 +44,7 @@ PROVIDER_CONFIG = {
 client = None
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['UPLOAD_FOLDER'] = '/tmp/uploads'  # Use /tmp for Vercel compatibility
 
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
@@ -218,66 +218,6 @@ Example of tabular data converted to bullet points:
         if custom_base_url:
             error_msg += f" (Using custom base URL: {custom_base_url})"
         raise Exception(error_msg)
-    
-    system_prompt = f"""
-You are an expert presentation designer creating structured Markdown for PowerPoint slides. Follow these rules:
-
-1. Structure with `##` for slide titles and `-` for bullet points
-2. Use layout comments like `<!-- Layout: TITLE -->` before each slide
-3. For TITLE slides: Only include a title, no content
-4. For SECTION_HEADER slides: Only include a title, no content
-5. For content slides: Include a title and bullet points
-6. Preserve bullet point hierarchy using indentation (2 spaces per level)
-7. Use markdown formatting for emphasis:
-   - Use **bold** for important terms, key concepts, or section headers within bullet points
-   - Apply bold formatting sparingly for maximum impact
-   - Do NOT use *italic* or other formatting
-8. Keep content within space constraints:
-   - Limit titles to the specified word count for each layout
-   - Limit content slides to the specified bullet point count for each layout
-   - If you have more content, split it into multiple slides with clear sub-topics
-   - Keep bullet points concise (1 short sentence each)
-9. Do NOT include markdown tables - describe them in plain text instead as bullet points or paragraphs
-10. When you need to present tabular data, convert it to bullet points with clear labels
-11. Do NOT include placeholder text like "List of Americas partner and non-partner teams"
-12. Do NOT include text that says "(Table format would be used here)"
-13. Do NOT include any text that indicates missing content or placeholders
-14. When presenting data that would normally be in a table, format it as a series of bullet points with clear labels
-15. Use ONLY these EXACT layout names from the available layouts:
-{chr(10).join([f"    - {name}" for name in available_layout_names])}
-
-Layout space constraints:
-{constraints_text}
-
-Example output:
-<!-- Layout: {available_layout_names[0] if available_layout_names else 'TITLE'} -->
-## Product Launch
-
-<!-- Layout: {available_layout_names[1] if len(available_layout_names) > 1 else 'SECTION_HEADER'} -->
-## Product Overview
-
-<!-- Layout: {available_layout_names[2] if len(available_layout_names) > 2 else 'TITLE_AND_CONTENT'} -->
-## Key Features
-- **Feature 1**: Brief description
-- **Feature 2**: Brief description
-  - Sub-point for feature 2
-- **Feature 3**: Brief description
-
-Example of tabular data converted to bullet points:
-## Team Information
-- **Americas Partner Team**: Description of the team's responsibilities
-- **Americas Non-Partner Team**: Description of the team's responsibilities
-- **EMEA Team**: Description of the team's responsibilities
-"""
-    response = client.chat.completions.create(
-        model=model_id,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"User-provided content:\n{content}"}
-        ],
-        temperature=0.5
-    )
-    return response.choices[0].message.content
 
 def parse_markdown(md_content):
     """Parse Markdown content into structured slides."""
@@ -461,6 +401,9 @@ def generate():
         output.seek(0)
         
         return send_file(output, as_attachment=True, download_name='generated_presentation.pptx', mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+
+# Vercel requires the app to be accessible as a variable named "app"
+application = app
 
 if __name__ == '__main__':
     app.run(debug=True)
