@@ -13,6 +13,7 @@ SlideGen AI is an intelligent PowerPoint presentation generator that transforms 
 - **Intelligent Content Structuring**: Automatically organizes content into appropriate slide layouts
 - **Rich Text Formatting**: Preserves bold formatting and hierarchical bullet points
 - **Responsive Web Interface**: Clean, dark-mode compatible UI with drag-and-drop file upload
+- **Enhanced UX**: Visual feedback during generation, clear file upload indicators
 
 ## System Architecture
 
@@ -114,7 +115,7 @@ Each provider is configured with appropriate base URLs and model mappings, with 
 - pip package manager
 - Virtual environment (recommended)
 
-### Installation
+### Local Installation
 
 1. **Clone the Repository**
    ```bash
@@ -133,21 +134,34 @@ Each provider is configured with appropriate base URLs and model mappings, with 
    pip install -r requirements.txt
    ```
 
-4. **Set Up Environment Variables (Optional)**
-   Create a `.env` file in the project root to store default API keys:
-   ```
-   GEMINI_API_KEY=your_gemini_api_key
-   OPENAI_API_KEY=your_openai_api_key
-   ANTHROPIC_API_KEY=your_anthropic_api_key
-   ```
-
-5. **Run the Application**
+4. **Run the Application**
    ```bash
    python app.py
    ```
 
 6. **Access the Web Interface**
    Open your browser and navigate to `http://localhost:5000`
+
+### Vercel Deployment
+
+1. **Fork the Repository**
+   Fork this repository to your GitHub account.
+
+2. **Connect to Vercel**
+   - Go to [vercel.com](https://vercel.com/) and sign up or log in
+   - Click "New Project"
+   - Import your forked repository
+
+3. **Configure Project**
+   - Framework Preset: Other
+   - Root Directory: Leave as is
+   - Build and Output Settings:
+     - Build Command: `pip install -r requirements.txt`
+     - Output Directory: `.`
+     - Install Command: Leave as default
+
+4. **Deploy**
+   Click "Deploy" and wait for the build to complete.
 
 ## Usage Instructions
 
@@ -169,13 +183,15 @@ For custom models:
 TDS-EXTRA_PPT/
 ├── app.py                 # Main Flask application
 ├── requirements.txt       # Python dependencies
+├── runtime.txt            # Python runtime version for Vercel
+├── vercel.json            # Vercel deployment configuration
+├── .vercelignore          # Files to exclude from Vercel deployment
 ├── .env                   # Environment variables (optional)
 ├── .gitignore             # Git ignore patterns
 ├── README.md              # This file
 ├── templates/
 │   └── index.html         # Web interface template
-├── uploads/               # Temporary file storage
-└── llmp1/                 # Additional modules (if any)
+└── uploads/               # Temporary file storage (local only)
 ```
 
 ## Dependencies
@@ -186,6 +202,7 @@ Key dependencies include:
 - **openai**: Official OpenAI Python library for API interactions
 - **python-dotenv**: Environment variable management
 - **Tailwind CSS**: Frontend styling (CDN loaded)
+- **gunicorn**: WSGI server for production deployment
 
 ## Contributing
 
