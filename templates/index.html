@@ -1,209 +1,399 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SlideGen AI - PowerPoint Generator</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PPT Generator</title>
+
+  <!-- Icon font (kept) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script>
-    tailwind.config = {
-      darkMode: 'class'
-    }
-  </script>
+
+  <!-- Fresh inline stylesheet: new palette, cards, shadows, rounded corners -->
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    body {
-      font-family: 'Inter', sans-serif;
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+    :root{
+      --bg: #f6fbfb;
+      --surface: #ffffff;
+      --muted: #6b7280;
+      --text: #0f172a;
+      --accent: #0ea5a4; /* teal-ish */
+      --accent-2: #6366f1; /* indigo */
+      --glass: rgba(15,23,42,0.04);
+      --card-shadow: 0 6px 18px rgba(2,6,23,0.06);
+      --radius: 12px;
     }
-    
+
+    /* Dark mode variables under .dark on html element */
+    .dark {
+      --bg: #0b1220;
+      --surface: #0f1724;
+      --muted: #9aa4b2;
+      --text: #e6eef8;
+      --accent: #2bd4c7;
+      --accent-2: #8b86ff;
+      --glass: rgba(255,255,255,0.02);
+      --card-shadow: 0 8px 26px rgba(2,6,23,0.6);
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      box-sizing: border-box;
+    }
+    *, *::before, *::after { box-sizing: inherit; }
+
+    /* Utility */
+    .hidden { display:none !important; }
+    .visually-hidden { position:absolute!important; height:1px;width:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap;border:0;padding:0;margin:-1px; }
+
+    /* App container */
+    .app-wrap {
+      max-width:1100px;
+      margin:28px auto;
+      padding:20px;
+      display:grid;
+      grid-template-columns: 280px 1fr;
+      grid-template-rows: auto 1fr;
+      gap:20px;
+      align-items:start;
+      box-sizing: border-box;
+      height: calc(100vh - 56px);
+      min-height: 0;
+    }
+
+    /* Top toolbar spans full width above grid */
+    .topbar {
+      grid-column: 1 / -1;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:4px;
+    }
+
+    .brand {
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+
+    .logo {
+      width:44px;
+      height:44px;
+      border-radius:10px;
+      background:linear-gradient(135deg,var(--accent),var(--accent-2));
+      box-shadow: 0 6px 18px rgba(99,102,241,0.14);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      font-weight:700;
+      font-size:18px;
+    }
+
+    .title {
+      font-weight:600;
+      font-size:18px;
+      letter-spacing:0.2px;
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .theme-toggle input { width:44px; height:26px; border-radius:999px; appearance:none; background:rgba(0,0,0,0.08); position:relative; cursor:pointer; outline:none; transition:all .18s ease; }
+    .theme-toggle input:after { content:''; position:absolute; width:18px; height:18px; left:4px; top:4px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(2,6,23,0.08); transition:all .18s ease; }
+    .dark .theme-toggle input { background:rgba(255,255,255,0.06); }
+    .theme-toggle input:checked { background:var(--accent); }
+    .theme-toggle input:checked:after { transform:translateX(18px); }
+
+    /* Sidebar (left column) */
+    .sidebar {
+      background:var(--surface);
+      border-radius:var(--radius);
+      padding:18px;
+      box-shadow:var(--card-shadow);
+      min-height:0;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      overflow:auto;
+      max-height:100%;
+      min-width:0;
+    }
+
+    .sidebar h4 { margin:0; font-size:14px; font-weight:600; color:var(--text); }
+    .sidebar .muted { color:var(--muted); font-size:13px; margin-top:6px; }
+
+    /* Provider cards */
+    .providers {
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:10px;
+      margin-top:6px;
+    }
+
     .provider-card {
-      transition: all 0.2s ease;
+      border-radius:10px;
+      padding:12px;
+      text-align:center;
+      border:1px solid rgba(2,6,23,0.06);
+      background:linear-gradient(180deg,var(--surface),var(--glass));
+      cursor:pointer;
+      transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+      box-shadow:0 6px 12px rgba(2,6,23,0.03);
+      user-select:none;
     }
-    
-    .provider-card.selected {
-      border-color: #262626;
+
+    .provider-card:hover{ transform:translateY(-4px); box-shadow:0 12px 24px rgba(2,6,23,0.06); }
+    .provider-card.selected { border-color: var(--accent); box-shadow:0 12px 28px rgba(14,165,164,0.12); transform:translateY(-6px); }
+
+    .provider-card h3 { margin:0; font-size:14px; font-weight:600; }
+    .provider-card p { margin:6px 0 0 0; color:var(--muted); font-size:13px; }
+
+    /* Field rows */
+    .field { display:flex; flex-direction:column; gap:8px; }
+    label.field-label { font-size:13px; font-weight:600; color:var(--text); }
+
+    input[type="text"], input[type="password"], select, textarea {
+      border-radius:10px;
+      border:1px solid rgba(2,6,23,0.06);
+      padding:10px 12px;
+      background:var(--surface);
+      color:var(--text);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,0.02);
+      transition:border-color .12s ease, box-shadow .12s ease, transform .06s ease;
+      font-size:14px;
     }
-    
-    .dark .provider-card.selected {
-      border-color: #f5f5f5;
+
+    textarea { min-height:120px; max-height:40vh; resize:vertical; }
+
+    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent-2); box-shadow:0 6px 18px rgba(99,102,241,0.08); transform:translateY(-1px); }
+
+    /* Main content card */
+    .main {
+      background:var(--surface);
+      border-radius:var(--radius);
+      padding:20px;
+      box-shadow:var(--card-shadow);
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      overflow:auto;
+      min-height:0;
     }
-    
-    .file-upload-label {
-      transition: all 0.2s ease;
+
+    /* File upload area */
+    .file-upload {
+      border-radius:10px;
+      border:2px dashed rgba(2,6,23,0.06);
+      background:linear-gradient(180deg,var(--surface),var(--glass));
+      padding:18px;
+      display:flex;
+      gap:14px;
+      align-items:center;
+      transition:background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+      cursor:pointer;
     }
-    
-    .file-upload-label.dragover {
-      border-color: #262626;
-      background-color: #f9f9f9;
+
+    .file-upload:hover { transform:translateY(-4px); box-shadow:0 12px 24px rgba(2,6,23,0.05); }
+    .file-upload.dragover { border-color:var(--accent); background: linear-gradient(180deg, rgba(14,165,164,0.03), var(--surface)); }
+
+    .file-meta { display:flex; flex-direction:column; gap:4px; }
+    .file-meta .name { font-weight:600; }
+    .file-meta .size { color:var(--muted); font-size:13px; }
+
+    .upload-icon {
+      width:68px; height:68px; border-radius:10px;
+      display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(135deg,var(--accent-2),var(--accent));
+      color:#fff; font-size:22px; flex:0 0 68px;
+      box-shadow:0 8px 20px rgba(99,102,241,0.12);
     }
-    
-    .dark .file-upload-label.dragover {
-      border-color: #f5f5f5;
-      background-color: #1f1f1f;
+
+    /* Small helper text */
+    .help { color:var(--muted); font-size:13px; }
+
+    /* CTA */
+    .cta-wrap { display:flex; gap:12px; align-items:center; justify-content:flex-end; }
+    .btn {
+      border-radius:10px;
+      padding:12px 18px;
+      border:none;
+      cursor:pointer;
+      font-weight:600;
+      transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+      box-shadow:0 8px 20px rgba(2,6,23,0.06);
+      background:linear-gradient(90deg,var(--accent-2),var(--accent));
+      color:#fff;
+      font-size:15px;
     }
-    
-    .generate-btn:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
+    .btn:active{ transform:translateY(1px); }
+    .btn:disabled { opacity:0.6; cursor:not-allowed; transform:none; box-shadow:none; }
+
+    /* Small variations */
+    .ghost { background:transparent; color:var(--accent-2); border:1px solid rgba(14,165,164,0.12); box-shadow:none; }
+
+    /* Overlay */
+    #generating-overlay {
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(2,6,23,0.6);
+      z-index:1200;
+    }
+    #generating-overlay .dialog {
+      background:var(--surface);
+      color:var(--text);
+      padding:26px;
+      border-radius:14px;
+      text-align:center;
+      box-shadow:0 18px 50px rgba(2,6,23,0.5);
+      max-width:420px;
+    }
+    #generating-overlay .spinner {
+      width:48px; height:48px;
+      border-radius:50%;
+      border:5px solid rgba(2,6,23,0.08);
+      border-top-color:var(--accent);
+      animation:spin 1s linear infinite;
+      margin:0 auto 14px;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* Responsive */
+    @media (max-width:900px){
+      .app-wrap { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; padding:16px; }
+      .sidebar { grid-column: 1 / -1; }
+      .main { grid-column: 1 / -1; }
+      .topbar { flex-direction:column; align-items:flex-start; gap:8px; }
     }
   </style>
 </head>
-<body class="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-50 min-h-screen transition-colors">
-  <div class="container mx-auto px-4 py-6 max-w-4xl">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-8 pb-4 border-b border-neutral-200 dark:border-neutral-700">
-      <div>
-        <h1 class="text-3xl font-bold text-neutral-900 dark:text-neutral-50">SlideGen AI</h1>
-        <p class="text-neutral-600 dark:text-neutral-400 mt-1">Professional Presentation Generator</p>
+<body>
+  <!-- Topbar -->
+  <div class="app-wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">PPT</div>
+        <div>
+          <div class="title"> PPT Presentation Generator</div>
+          <div class="help">Create presentations from structured prompts</div>
+        </div>
       </div>
-      
-      <!-- Theme Toggle -->
-      <div class="flex items-center space-x-3">
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" id="theme-toggle" class="sr-only peer">
-          <div class="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-neutral-600 peer-checked:bg-neutral-800 dark:peer-checked:bg-neutral-300"></div>
-        </label>
+
+      <div class="theme-toggle" title="Toggle dark / light theme">
+        <label class="theme" for="theme-toggle">Theme</label>
+        <input type="checkbox" id="theme-toggle" aria-label="Toggle theme">
       </div>
     </div>
-    
-    <!-- Main Form -->
-    <form id="generate-form" action="/generate" method="post" enctype="multipart/form-data" class="space-y-6">
-      <!-- File Upload -->
-      <div>
-        <label class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
-          Upload PowerPoint Template
-        </label>
-        <div class="flex items-center justify-center w-full">
-          <label for="ppt-file" class="file-upload-label flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-neutral-300 dark:border-neutral-600 cursor-pointer bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
-            <div class="flex flex-col items-center justify-center py-8">
-              <i class="fas fa-upload text-3xl text-neutral-500 mb-3"></i>
-              <p class="text-lg text-neutral-600 dark:text-neutral-300 font-medium">
-                <span class="font-semibold">Click to upload</span> or drag and drop
-              </p>
-              <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-2">PowerPoint files only (.pptx)</p>
-            </div>
-            <input id="ppt-file" name="ppt_file" type="file" class="hidden" accept=".pptx" required />
-          </label>
-        </div>
-        <div id="file-info" class="mt-3 p-3 bg-neutral-100 dark:bg-neutral-800 hidden">
-          <div class="flex items-center">
-            <i class="fas fa-file-powerpoint text-red-500 text-xl mr-3"></i>
-            <div>
-              <p class="font-medium text-neutral-900 dark:text-neutral-50" id="file-name">filename.pptx</p>
-              <p class="text-sm text-neutral-600 dark:text-neutral-400" id="file-size">2.4 MB</p>
-            </div>
+
+    <!-- Sidebar: provider + model + key -->
+    <aside class="sidebar" aria-label="Controls">
+      <div class="field">
+        <label class="field-label">API Provider</label>
+        <div class="providers" role="list">
+          <div class="provider-card" data-provider="gemini" role="listitem" tabindex="0">
+            <h3>Gemini</h3>
           </div>
-        </div>
-      </div>
-      
-      <!-- Provider Selection -->
-      <div>
-        <label class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
-          Select AI Provider
-        </label>
-        <div class="grid grid-cols-3 gap-3">
-          <div class="provider-card bg-white dark:bg-neutral-800 p-4 cursor-pointer border-2 border-neutral-300 dark:border-neutral-600 text-center hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors" data-provider="gemini">
-            <h3 class="font-semibold text-base">Gemini</h3>
-            <p class="text-sm text-neutral-500 dark:text-neutral-400">Google</p>
+          <div class="provider-card" data-provider="openai" role="listitem" tabindex="0">
+            <h3>OpenAI</h3>
           </div>
-          
-          <div class="provider-card bg-white dark:bg-neutral-800 p-4 cursor-pointer border-2 border-neutral-300 dark:border-neutral-600 text-center hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors" data-provider="openai">
-            <h3 class="font-semibold text-base">OpenAI</h3>
-            <p class="text-sm text-neutral-500 dark:text-neutral-400">GPT Models</p>
-          </div>
-          
-          <div class="provider-card bg-white dark:bg-neutral-800 p-4 cursor-pointer border-2 border-neutral-300 dark:border-neutral-600 text-center hover:border-neutral-400 dark:hover:border-neutral-500 transition-colors" data-provider="claude">
-            <h3 class="font-semibold text-base">Claude</h3>
-            <p class="text-sm text-neutral-500 dark:text-neutral-400">Anthropic</p>
+          <div class="provider-card" data-provider="claude" role="listitem" tabindex="0">
+            <h3>Claude</h3>
           </div>
         </div>
         <input type="hidden" id="provider" name="provider" value="gemini">
       </div>
-      
-      <!-- Model Selection and API Key -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label for="model" class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
-            Select Model
-          </label>
-          <select id="model" name="model" class="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:border-neutral-900 dark:focus:border-neutral-50 outline-none transition-colors">
-            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-            <option value="gemini-1.5-pro">gemini-1.5-pro</option>
-            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-          </select>
-          
-          <!-- Custom Model Section -->
-          <div id="custom-model-section" class="mt-4 hidden">
-            <label class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
-              Custom Model (OpenAI Compatible)
-            </label>
-            <input type="text" id="custom-base-url" name="custom_base_url" 
-              class="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:border-neutral-900 dark:focus:border-neutral-50 outline-none transition-colors mb-3" 
-              placeholder="Enter base API URL (e.g., https://api.openai.com/v1)">
-            <input type="text" id="custom-model-name" name="custom_model_name" 
-              class="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:border-neutral-900 dark:focus:border-neutral-50 outline-none transition-colors" 
-              placeholder="Enter model name (e.g., gpt-4)">
-            <p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-              For OpenAI-compatible APIs (OpenAI, Azure OpenAI, Mistral, etc.). Ensure the base URL ends with '/v1' for most providers.
-            </p>
-          </div>
-          
-          <!-- Use Custom Model Checkbox -->
-          <div class="mt-3">
-            <label class="inline-flex items-center">
-              <input type="checkbox" id="use-custom-model" class="rounded border-neutral-300 dark:border-neutral-600 text-neutral-900 dark:text-neutral-50 focus:ring-neutral-900 dark:focus:ring-neutral-50">
-              <span class="ml-2 text-neutral-700 dark:text-neutral-300">Use custom OpenAI-compatible model</span>
-            </label>
-          </div>
-        </div>
-        
-        <div>
-          <label for="api_key" class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
-            API Key
-          </label>
-          <input type="password" id="api_key" name="api_key" 
-            class="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:border-neutral-900 dark:focus:border-neutral-50 outline-none transition-colors" 
-            placeholder="Enter your API key" required>
-          <p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-            Your API key is used only for this request and is not stored.
-          </p>
-        </div>
+
+      <div class="field">
+        <label class="field-label" for="model">Model</label>
+        <select id="model" name="model" aria-label="Select model">
+          <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+          <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+          <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+        </select>
       </div>
-      
-      <!-- Content Input -->
-      <div>
-        <label for="user-content" class="block text-lg font-semibold mb-3 text-neutral-900 dark:text-neutral-50">
-          Enter Your Content
+
+      <div class="field">
+        <label class="field-label" for="api_key">API Key</label>
+        <input type="password" id="api_key" name="api_key" placeholder="Enter your API key" required>
+        <div class="muted">Used for this request only — not stored.</div>
+      </div>
+
+      <div class="field">
+        <label class="inline-flex items-center field-label">
+          <input type="checkbox" id="use-custom-model" name="use_custom_model" style="width:18px;height:18px;">
+          <span style="margin-left:8px;font-weight:500;font-size:13px;color:var(--muted)">Use custom OpenAI-compatible model</span>
         </label>
-        <textarea id="user-content" name="user_content" rows="12" 
-          class="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 focus:border-neutral-900 dark:focus:border-neutral-50 outline-none transition-colors resize-y" 
-          placeholder="Describe the content you want in your presentation. Include key points, topics, detailed information, bullet points, specific data, or any other content you want included in your slides. The more detail you provide, the better the generated presentation will be." required></textarea>
-        <p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-          Include key points, topics, and any specific information you want in your slides.
-        </p>
       </div>
-      
-      <!-- Generate Button -->
-      <div class="pt-2">
-        <button type="submit" id="generate-btn" class="generate-btn w-full bg-neutral-900 dark:bg-neutral-50 text-neutral-50 dark:text-neutral-900 font-semibold py-4 px-6 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors">
-          Generate Presentation
-        </button>
+
+      <div id="custom-model-section" class="field hidden" aria-hidden="true">
+        <label class="field-label">Custom Model (OpenAI compatible)</label>
+        <input type="text" id="custom-base-url" name="custom_base_url" placeholder="https://api.example.com/v1">
+        <input type="text" id="custom-model-name" name="custom_model_name" placeholder="Model name (e.g., gpt-4)">
+        <div class="help">For custom endpoints (OpenAI, Azure, etc.).</div>
       </div>
-    </form>
-    
-    <!-- Generating Overlay -->
-    <div id="generating-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
-      <div class="bg-white dark:bg-neutral-800 p-8 text-center max-w-md">
-        <div class="flex justify-center mb-6">
-          <div class="w-12 h-12 border-4 border-neutral-900 dark:border-neutral-50 border-t-transparent rounded-full animate-spin"></div>
+    </aside>
+
+    <!-- Main area -->
+    <main class="main" aria-labelledby="main-heading">
+      <h2 id="main-heading" style="margin:0;font-size:16px;font-weight:600">Upload template & content</h2>
+
+      <!-- Form -->
+      <form id="generate-form" action="/generate" method="post" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:14px;">
+        <label class="field-label">PowerPoint Template</label>
+
+        <label for="ppt-file" class="file-upload file-upload-label" tabindex="0">
+          <div class="upload-icon"><i class="fas fa-file-upload"></i></div>
+          <div class="file-meta">
+            <div style="font-weight:600">Click or drop a .pptx file here</div>
+            <div class="help">Accepted: .pptx</div>
+          </div>
+          <input id="ppt-file" name="ppt_file" type="file" accept=".pptx" class="visually-hidden" required>
+        </label>
+
+        <div id="file-info" class="field hidden" aria-live="polite">
+          <div style="display:flex;align-items:center;gap:10px">
+            <i class="fas fa-file-powerpoint" style="color:#e0473c;font-size:20px"></i>
+            <div>
+              <div id="file-name" class="name">filename.pptx</div>
+              <div id="file-size" class="size">2.4 MB</div>
+            </div>
+          </div>
         </div>
-        <h3 class="text-2xl font-bold text-neutral-900 dark:text-neutral-50 mb-2">Generating Presentation</h3>
-        <p class="text-neutral-600 dark:text-neutral-400">
-          This may take 30-60 seconds. Please do not refresh or close the page.
-        </p>
-      </div>
+
+        <div class="field">
+          <label class="field-label" for="user-content">Your Content</label>
+          <textarea id="user-content" name="user_content" placeholder="Describe the content you want in your presentation. More detail -> better results." required></textarea>
+          <div class="help">Include key points, bullets, and specific data.</div>
+        </div>
+
+        <div class="cta-wrap" style="margin-top:6px;">
+          <button type="submit" id="generate-btn" class="btn" >
+            Generate Presentation
+          </button>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <!-- Generating overlay -->
+  <div id="generating-overlay" class="hidden" aria-hidden="true">
+    <div class="dialog">
+      <div class="spinner" role="status" aria-hidden="true"></div>
+      <h3 style="margin:8px 0 6px;font-size:18px">Generating Presentation</h3>
+      <div class="help">This may take a minute. Please keep this tab open.</div>
     </div>
   </div>
 
@@ -221,7 +411,7 @@
         { value: 'gpt-3.5-turbo', text: 'gpt-3.5-turbo' }
       ],
       'claude': [
-        { value: 'claude-3-5-sonnet', text: 'claude-3-5-sonnet' },
+        { value: 'claude-3-5-sonnet', text: 'claude-3.5-sonnet' },
         { value: 'claude-3-opus', text: 'claude-3-opus' },
         { value: 'claude-3-sonnet', text: 'claude-3-sonnet' }
       ]
@@ -244,10 +434,14 @@
     const generatingOverlay = document.getElementById('generating-overlay');
     const form = document.getElementById('generate-form');
     const fileUploadLabel = document.querySelector('.file-upload-label');
-    
+
+    // Helper to toggle hidden state (keeps original class usage)
+    function show(el){ el.classList.remove('hidden'); el.setAttribute('aria-hidden','false'); }
+    function hide(el){ el.classList.add('hidden'); el.setAttribute('aria-hidden','true'); }
+
     // Theme Management
     function initTheme() {
-      const isDark = localStorage.getItem('theme') === 'dark' || 
+      const isDark = localStorage.getItem('theme') === 'dark' ||
                     (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
       
       if (isDark) {
@@ -268,7 +462,7 @@
         localStorage.setItem('theme', 'light');
       }
     });
-    
+
     // Provider Selection
     providerCards.forEach(card => {
       card.addEventListener('click', () => {
@@ -279,10 +473,11 @@
         providerInput.value = provider;
         updateModelOptions(provider);
         
-        // Hide custom model section when changing providers
         customModelSection.classList.add('hidden');
         useCustomModelCheckbox.checked = false;
       });
+      // allow keyboard selection
+      card.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); } });
     });
     
     // Custom Model Toggle
@@ -291,23 +486,12 @@
         customModelSection.classList.remove('hidden');
         // Clear default model selection
         modelSelect.value = '';
-        // Show a message about how custom models work
-        const infoMessage = document.createElement('p');
-        infoMessage.id = 'custom-model-info';
-        infoMessage.className = 'mt-2 text-sm text-blue-600 dark:text-blue-400';
-        infoMessage.textContent = 'Provider automatically set to OpenAI for custom models. Make sure your API key is valid for the custom endpoint.';
-        customModelSection.parentNode.insertBefore(infoMessage, customModelSection.nextSibling);
       } else {
         customModelSection.classList.add('hidden');
         // Restore default model selection for current provider
         const provider = providerInput.value;
         if (modelOptions[provider] && modelOptions[provider].length > 0) {
           modelSelect.value = modelOptions[provider][0].value;
-        }
-        // Remove info message if it exists
-        const infoMessage = document.getElementById('custom-model-info');
-        if (infoMessage) {
-          infoMessage.remove();
         }
       }
     });
@@ -334,7 +518,6 @@
       if (this.files.length > 0) {
         const file = this.files[0];
         fileName.textContent = file.name;
-        // Format file size
         const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
         fileSize.textContent = `${sizeInMB} MB`;
         fileInfo.classList.remove('hidden');
@@ -345,7 +528,7 @@
     
     // Drag and drop functionality
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-      fileUploadLabel.addEventListener(eventName, preventDefaults, false);
+      if (fileUploadLabel) fileUploadLabel.addEventListener(eventName, preventDefaults, false);
     });
     
     function preventDefaults(e) {
@@ -354,11 +537,11 @@
     }
     
     ['dragenter', 'dragover'].forEach(eventName => {
-      fileUploadLabel.addEventListener(eventName, highlight, false);
+      if (fileUploadLabel) fileUploadLabel.addEventListener(eventName, highlight, false);
     });
     
     ['dragleave', 'drop'].forEach(eventName => {
-      fileUploadLabel.addEventListener(eventName, unhighlight, false);
+      if (fileUploadLabel) fileUploadLabel.addEventListener(eventName, unhighlight, false);
     });
     
     function highlight(e) {
@@ -369,7 +552,7 @@
       fileUploadLabel.classList.remove('dragover');
     }
     
-    fileUploadLabel.addEventListener('drop', handleDrop, false);
+    if (fileUploadLabel) fileUploadLabel.addEventListener('drop', handleDrop, false);
     
     function handleDrop(e) {
       const dt = e.dataTransfer;
@@ -385,16 +568,12 @@
     // Form submission handling with AJAX
     form.addEventListener('submit', function(e) {
       e.preventDefault();
-      
-      // Show generating overlay
       generatingOverlay.classList.remove('hidden');
-      // Disable generate button
       generateBtn.disabled = true;
       generateBtn.textContent = 'Generating...';
       
       // Validate custom model if selected
       if (useCustomModelCheckbox.checked) {
-        // Validate custom model fields
         if (!customBaseUrlInput.value.trim() || !customModelNameInput.value.trim()) {
           alert('Please enter both the base API URL and model name for custom models.');
           generatingOverlay.classList.add('hidden');
@@ -412,12 +591,22 @@
           return;
         }
         
-        // Set provider to 'openai' for custom models since they're OpenAI-compatible
+        // Set provider to 'openai' for custom models
         providerInput.value = 'openai';
       }
       
       // Create FormData object
       const formData = new FormData(form);
+      // Append provider, model and api key which are outside the form element
+      formData.append('provider', providerInput.value || 'gemini');
+      if (modelSelect && modelSelect.value) formData.append('model', modelSelect.value);
+      const apiKeyInput = document.getElementById('api_key');
+      if (apiKeyInput && apiKeyInput.value) formData.append('api_key', apiKeyInput.value);
+      // If custom model is used, include its fields as well
+      if (useCustomModelCheckbox.checked) {
+        if (customBaseUrlInput && customBaseUrlInput.value) formData.append('custom_base_url', customBaseUrlInput.value.trim());
+        if (customModelNameInput && customModelNameInput.value) formData.append('custom_model_name', customModelNameInput.value.trim());
+      }
       
       // Send request using fetch
       fetch('/generate', {
@@ -438,7 +627,6 @@
           
           // Create blob from response
           return response.blob().then(blob => {
-            // Create download link
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -477,7 +665,8 @@
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
       initTheme();
-      providerCards[0].click(); // Select first provider by default
+      // Ensure first provider is selected if present
+      if (providerCards && providerCards.length > 0) providerCards[0].click();
     });
   </script>
 </body>
