@@ -63,10 +63,61 @@ docker build -t ppt-presentation-generator .
 Run (maps container port 8080 to host):
 
 ```bash
-docker run --rm -p 8080:8080 ppt-presentation-generator
+docker run --rm -e PORT=8080 -p 8080:8080 ppt-presentation-generator
+```
+
+Health endpoint check:
+
+```bash
+curl -fsS http://localhost:8080/healthz
 ```
 
 Note: The Dockerfile installs `libjpeg-dev` and `zlib1g-dev` for image/font support required by Pillow (see [`Dockerfile`](Dockerfile:7-9,19)).
+
+Deploying to Railway
+--------------------
+
+Production deployments must use server-side API keys and TLS. Do not embed client-side API keys in the UI; keep keys in Railway environment variables / secrets.
+
+Docker-based deployment (commands):
+
+```bash
+docker build -t ppt-presentation-generator .
+docker run --rm -e PORT=8080 -p 8080:8080 ppt-presentation-generator
+curl -fsS http://localhost:8080/healthz
+```
+
+Railway (non-Docker) deployment notes:
+
+1. Create a Railway project, connect your Git repository, and set environment variables (at minimum set OPENAI_API_KEY).
+2. Railway will provide a PORT environment variable to the container/process. For non-Docker deploys Railway uses the repository Procfile. This project includes a Procfile:
+   [`Procfile`](Procfile:1) -> web: gunicorn -b 0.0.0.0:$PORT app:app
+3. If you prefer Docker deploys on Railway, enable Docker deployment in the Railway project and optionally set PORT in environment variables if you need a non-default value.
+
+Local production testing
+------------------------
+
+Use the same production server (gunicorn) locally to emulate Railway:
+
+```bash
+python -m venv .venv
+# Unix / macOS
+source .venv/bin/activate
+# Windows PowerShell
+# .venv\Scripts\activate
+
+pip install -r requirements.txt
+export PORT=8080
+gunicorn -b 0.0.0.0:${PORT} app:app
+curl -fsS http://localhost:8080/healthz
+```
+
+Security and runtime notes
+--------------------------
+
+- The server must never expose client-side API keys. The UI should POST user requests to server endpoints which use server-side keys stored in Railway environment variables.
+- Set OPENAI_API_KEY and LOG_LEVEL in Railway environment variables; do not commit real keys to the repository. See .env.example for sample variable names: [`.env.example`](.env.example:1)
+- The server implements MAX_CONTENT_LENGTH and uses secure_filename for uploads (see [`app.py`](app.py:1)); ensure upload limits and permissions fit your deployment environment.
 
 Vercel
 ------
