@@ -1,0 +1,11 @@
+# Set your repository and branch in the Render dashboard or edit this file to match your repo.
+services:
+  - type: web
+    name: ppt-generator
+    env: docker
+    branch: main
+    dockerfilePath: Dockerfile
+    buildCommand: ""
+    startCommand: ""
+    plan: free
+    healthCheckPath: /healthz

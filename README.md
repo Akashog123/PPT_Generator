@@ -73,26 +73,50 @@ curl -fsS http://localhost:8080/healthz
 ```
 
 Note: The Dockerfile installs `libjpeg-dev` and `zlib1g-dev` for image/font support required by Pillow (see [`Dockerfile`](Dockerfile:7-9,19)).
-
-Deploying to Railway
---------------------
-
-Production deployments must use server-side API keys and TLS. Do not embed client-side API keys in the UI; keep keys in Railway environment variables / secrets.
-
-Docker-based deployment (commands):
-
+ 
+Deploying to Render
+-------------------
+ 
+Quick Docker deploy to test locally:
+ 
 ```bash
 docker build -t ppt-presentation-generator .
 docker run --rm -e PORT=8080 -p 8080:8080 ppt-presentation-generator
 curl -fsS http://localhost:8080/healthz
 ```
-
-Railway (non-Docker) deployment notes:
-
-1. Create a Railway project, connect your Git repository, and set environment variables (at minimum set OPENAI_API_KEY).
-2. Railway will provide a PORT environment variable to the container/process. For non-Docker deploys Railway uses the repository Procfile. This project includes a Procfile:
-   [`Procfile`](Procfile:1) -> web: gunicorn -b 0.0.0.0:$PORT app:app
-3. If you prefer Docker deploys on Railway, enable Docker deployment in the Railway project and optionally set PORT in environment variables if you need a non-default value.
+ 
+Deploy with Render (using Docker):
+ 
+1. Sign in to Render and create a new Web Service.
+2. Connect your Git repository and choose the branch to deploy.
+3. For "Environment", choose "Docker".
+4. Ensure the Dockerfile path is set to ./Dockerfile and the port environment variable PORT is NOT hard-coded in Render — Render provides PORT at runtime.
+5. Set environment variables in Render: OPENAI_API_KEY (your server-side key), LOG_LEVEL (optional).
+6. Optionally add Health Check Path: /healthz
+7. Deploy and monitor build logs; the service will use Dockerfile and bind to $PORT.
+ 
+Deploy with render.yaml (Infrastructure as Code):
+ 
+You can declare the service using `render.yaml` to describe the web service and reference the Dockerfile. See `render.yaml` in the repository root for an example manifest — you can edit it to match your repo or configure the service in the Render dashboard.
+ 
+Local production testing using gunicorn (same commands as before):
+ 
+```bash
+python -m venv .venv
+# Unix / macOS
+source .venv/bin/activate
+# Windows PowerShell
+# .venv\Scripts\activate
+ 
+pip install -r requirements.txt
+export PORT=8080
+gunicorn -b 0.0.0.0:${PORT} app:app
+curl -fsS http://localhost:8080/healthz
+```
+ 
+Security note:
+ 
+Never expose client-side API keys; use server-side environment variables in Render to store OPENAI_API_KEY and any other secrets.
 
 Local production testing
 ------------------------
@@ -202,6 +226,7 @@ Changelog / discrepancies with previous README
 - Previous README mentioned Tailwind; templates use a small custom stylesheet (no Tailwind dependency).
 - `runtime.txt` is not provided for platform build hints even though Dockerfile pins 3.11.
 - API key storage: older README claimed server-stored API key — current app requires `api_key` per request from the UI.
+- What changed: Procfile (Railway/Heroku) was removed and replaced with Render configuration (render.yaml) for Docker-based deployments.
 
 Files referenced while preparing this README
 -------------------------------------------
