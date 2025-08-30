@@ -91,7 +91,7 @@ Deploy with Render (using Docker):
 2. Connect your Git repository and choose the branch to deploy.
 3. For "Environment", choose "Docker".
 4. Ensure the Dockerfile path is set to ./Dockerfile and the port environment variable PORT is NOT hard-coded in Render — Render provides PORT at runtime.
-5. Set environment variables in Render: OPENAI_API_KEY (your server-side key), LOG_LEVEL (optional).
+5. Set environment variables in Render: LOG_LEVEL (optional).
 6. Optionally add Health Check Path: /healthz
 7. Deploy and monitor build logs; the service will use Dockerfile and bind to $PORT.
  
@@ -113,10 +113,6 @@ export PORT=8080
 gunicorn -b 0.0.0.0:${PORT} app:app
 curl -fsS http://localhost:8080/healthz
 ```
- 
-Security note:
- 
-Never expose client-side API keys; use server-side environment variables in Render to store OPENAI_API_KEY and any other secrets.
 
 Local production testing
 ------------------------
@@ -140,7 +136,6 @@ Security and runtime notes
 --------------------------
 
 - The server must never expose client-side API keys. The UI should POST user requests to server endpoints which use server-side keys stored in Railway environment variables.
-- Set OPENAI_API_KEY and LOG_LEVEL in Railway environment variables; do not commit real keys to the repository. See .env.example for sample variable names: [`.env.example`](.env.example:1)
 - The server implements MAX_CONTENT_LENGTH and uses secure_filename for uploads (see [`app.py`](app.py:1)); ensure upload limits and permissions fit your deployment environment.
 
 Vercel
