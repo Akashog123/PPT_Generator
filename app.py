@@ -9,6 +9,10 @@ from openai import OpenAI
 import uuid
 import io
 import httpx
+import signal
+import logging
+import shutil
+from werkzeug.utils import secure_filename
 
 # Load environment variables
 load_dotenv()
@@ -45,10 +49,20 @@ PROVIDER_CONFIG = {
 client = None
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = '/tmp/uploads'  # Use /tmp for Vercel compatibility
+# File upload configuration
+UPLOAD_FOLDER = os.path.join('/tmp', 'uploads')  # Use /tmp for Vercel compatibility
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
+# Limit uploads to 16MB by default and restrict file extensions to .pptx
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
+ALLOWED_EXTENSIONS = {'pptx'}
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Structured logging (level configurable via LOG_LEVEL env var)
+logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO'))
+logger = logging.getLogger(__name__)
 
 def remove_slide(prs, slide_index):
     """Remove a slide by its index."""
@@ -304,6 +318,11 @@ def process_markdown_formatting(paragraph, text):
 def index():
     return render_template('index.html')
 
+@app.route('/healthz', methods=['GET'])
+def healthz():
+    """Simple healthcheck for orchestration and platform probes."""
+    return jsonify(status='ok'), 200
+
 @app.route('/generate', methods=['POST'])
 def generate():
     if 'ppt_file' not in request.files:
@@ -338,93 +357,120 @@ def generate():
         if not api_key:
             return "API key is required", 400
         
+        # Create isolated upload folder for this request and save uploaded file securely
         upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], str(uuid.uuid4()))
         os.makedirs(upload_folder, exist_ok=True)
-        
-        template_path = os.path.join(upload_folder, file.filename)
+
+        # Sanitize filename and validate extension
+        filename = secure_filename(file.filename)
+        if not allowed_file(filename):
+            return "Invalid file type", 400
+
+        template_path = os.path.join(upload_folder, filename)
         file.save(template_path)
-        
-        prs = Presentation(template_path)
-        original_slide_count = len(prs.slides)
-        
-        available_layouts = {i: layout.name for i, layout in enumerate(prs.slide_layouts)}
-        available_layout_names = list(available_layouts.values())
-        
-        layout_constraints = get_layout_constraints(prs, available_layouts)
-        constraints_text = "\n".join([
-            f"    - {name}: Title max {info['title_capacity']} words, Content max {info['body_capacity']} bullet points"
-            for name, info in layout_constraints.items()
-        ])
-        
+        logger.info("Saved uploaded template to %s", template_path)
+
+        # Wrap processing in try/finally to ensure temporary files are removed
         try:
-            # Get proxy settings from request if available
-            proxies = {
-                "http://": request.form.get("http_proxy"),
-                "https://": request.form.get("https_proxy"),
-            } if request.form.get("http_proxy") or request.form.get("https_proxy") else None
-            
-            md_content = generate_markdown(user_content, available_layout_names, constraints_text, provider_name, model_name, api_key, custom_base_url, proxies)
-        except Exception as e:
-            return f"Error generating content: {str(e)}", 500
-            
-        slides = parse_markdown(md_content)
-        
-        for slide_data in slides:
-            title = slide_data["title"]
-            content_lines = slide_data["content"]
-            layout_name = slide_data["layout"] or "TITLE_AND_CONTENT"
-            layout = get_layout(prs, layout_name, available_layouts)
-            slide = prs.slides.add_slide(layout)
-            title_shape = slide.shapes.title
-            if title_shape:
-                title_shape.text = title or "Untitled"
-            
-            layout_upper = layout_name.upper()
-            is_content_slide = not (
-                layout_upper == "TITLE" or
-                layout_upper == "SECTION_HEADER" or
-                "SECTION HEADER" in layout_upper or
-                ("TITLE" in layout_upper and "SECTION" in layout_upper and not any(c in layout_upper for c in ["CONTENT", "BODY"])) or
-                "BLANK" in layout_upper
-            )
-            
-            if content_lines and is_content_slide:
-                body_shape = None
-                for shape in slide.placeholders:
-                    if shape.placeholder_format.type == PP_PLACEHOLDER.BODY:
-                        body_shape = shape
-                        break
-                if not body_shape:
+            prs = Presentation(template_path)
+            original_slide_count = len(prs.slides)
+
+            available_layouts = {i: layout.name for i, layout in enumerate(prs.slide_layouts)}
+            available_layout_names = list(available_layouts.values())
+
+            layout_constraints = get_layout_constraints(prs, available_layouts)
+            constraints_text = "\n".join([
+                f"    - {name}: Title max {info['title_capacity']} words, Content max {info['body_capacity']} bullet points"
+                for name, info in layout_constraints.items()
+            ])
+
+            try:
+                # Get proxy settings from request if available
+                proxies = {
+                    "http://": request.form.get("http_proxy"),
+                    "https://": request.form.get("https_proxy"),
+                } if request.form.get("http_proxy") or request.form.get("https_proxy") else None
+
+                md_content = generate_markdown(user_content, available_layout_names, constraints_text, provider_name, model_name, api_key, custom_base_url, proxies)
+            except Exception as e:
+                logger.exception("Error generating markdown")
+                return f"Error generating content: {str(e)}", 500
+
+            slides = parse_markdown(md_content)
+
+            for slide_data in slides:
+                title = slide_data["title"]
+                content_lines = slide_data["content"]
+                layout_name = slide_data["layout"] or "TITLE_AND_CONTENT"
+                layout = get_layout(prs, layout_name, available_layouts)
+                slide = prs.slides.add_slide(layout)
+                title_shape = slide.shapes.title
+                if title_shape:
+                    title_shape.text = title or "Untitled"
+
+                layout_upper = layout_name.upper()
+                is_content_slide = not (
+                    layout_upper == "TITLE" or
+                    layout_upper == "SECTION_HEADER" or
+                    "SECTION HEADER" in layout_upper or
+                    ("TITLE" in layout_upper and "SECTION" in layout_upper and not any(c in layout_upper for c in ["CONTENT", "BODY"])) or
+                    "BLANK" in layout_upper
+                )
+
+                if content_lines and is_content_slide:
+                    body_shape = None
                     for shape in slide.placeholders:
-                        shape_name = getattr(shape, 'name', '').upper()
-                        if any(keyword in shape_name for keyword in ['CONTENT', 'BODY', 'TEXT']):
+                        if shape.placeholder_format.type == PP_PLACEHOLDER.BODY:
                             body_shape = shape
                             break
-                if not body_shape:
-                    for shape in slide.placeholders:
-                        if hasattr(shape, 'placeholder_format') and shape.placeholder_format.idx != 0:
-                            if hasattr(shape, 'text_frame'):
+                    if not body_shape:
+                        for shape in slide.placeholders:
+                            shape_name = getattr(shape, 'name', '').upper()
+                            if any(keyword in shape_name for keyword in ['CONTENT', 'BODY', 'TEXT']):
                                 body_shape = shape
                                 break
-                if not body_shape:
-                    for shape in slide.placeholders:
-                        if shape != title_shape and hasattr(shape, 'text_frame'):
-                            body_shape = shape
-                            break
-                if body_shape:
-                    add_formatted_content(body_shape, content_lines)
+                    if not body_shape:
+                        for shape in slide.placeholders:
+                            if hasattr(shape, 'placeholder_format') and shape.placeholder_format.idx != 0:
+                                if hasattr(shape, 'text_frame'):
+                                    body_shape = shape
+                                    break
+                    if not body_shape:
+                        for shape in slide.placeholders:
+                            if shape != title_shape and hasattr(shape, 'text_frame'):
+                                body_shape = shape
+                                break
+                    if body_shape:
+                        add_formatted_content(body_shape, content_lines)
 
-        for i in reversed(range(original_slide_count)):
-            remove_slide(prs, i)
-        
-        output = io.BytesIO()
-        prs.save(output)
-        output.seek(0)
-        
-        return send_file(output, as_attachment=True, download_name='generated_presentation.pptx', mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+            for i in reversed(range(original_slide_count)):
+                remove_slide(prs, i)
+
+            output = io.BytesIO()
+            prs.save(output)
+            output.seek(0)
+
+            # Return generated pptx
+            return send_file(output, as_attachment=True, download_name='generated_presentation.pptx', mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+        finally:
+            # Ensure the temporary upload folder is removed to avoid disk exhaustion
+            try:
+                shutil.rmtree(upload_folder)
+                logger.info("Cleaned up upload folder %s", upload_folder)
+            except Exception:
+                logger.exception("Failed to clean up upload folder %s", upload_folder)
 
 # Vercel requires the app to be accessible as a variable named "app"
 application = app
 
+# Graceful shutdown handler for local runs (Gunicorn will manage workers in production)
+def _handle_shutdown(signum, frame):
+    logger.info("Received signal %s, shutting down.", signum)
+
+signal.signal(signal.SIGTERM, _handle_shutdown)
+signal.signal(signal.SIGINT, _handle_shutdown)
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', '8080'))
+    logger.info("Starting Flask development server on 0.0.0.0:%s", port)
+    app.run(host='0.0.0.0', port=port, debug=False)

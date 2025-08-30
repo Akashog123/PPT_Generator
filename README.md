@@ -89,7 +89,7 @@ curl -fsS http://localhost:8080/healthz
 
 Railway (non-Docker) deployment notes:
 
-1. Create a Railway project, connect your Git repository, and set environment variables (at minimum set OPENAI_API_KEY).
+1. Create a Railway project, connect your Git repository.
 2. Railway will provide a PORT environment variable to the container/process. For non-Docker deploys Railway uses the repository Procfile. This project includes a Procfile:
    [`Procfile`](Procfile:1) -> web: gunicorn -b 0.0.0.0:$PORT app:app
 3. If you prefer Docker deploys on Railway, enable Docker deployment in the Railway project and optionally set PORT in environment variables if you need a non-default value.
